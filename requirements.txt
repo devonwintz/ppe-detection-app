@@ -1,0 +1,8 @@
+torch==2.6.0
+ultralytics==8.3.114
+tensorflow==2.19.0
+tflite-runtime==2.14.0
+onnx==1.17.0
+opencv-python== 4.11.0.86
+numpy==2.1.1
+typing-extensions==4.13.2

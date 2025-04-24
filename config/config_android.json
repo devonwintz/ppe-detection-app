@@ -1,0 +1,14 @@
+{
+    "modelPath": "./models/best_saved_model/best_float32.tflite",
+    "resultsPath": "./runs",
+    "inputSource": 0,
+    "showResults": true,
+    "frameSkip": 5,
+    "saveImagesWithResults": false,
+    "nmsThreshold": 0.4,
+    "confidenceSource": 0.4,
+    "enableCLAHE": false,
+    "enablePreprocessing": false,
+    "ppeDetectionClasses": ["Hardhat", "NO-Hardhat", "Saftety Vest", "NO-Safety Vest"]
+
+}

@@ -1,0 +1,13 @@
+{
+    "modelPath": "./models/best.pt",
+    "resultsPath": "./runs",
+    "inputSource": 0,
+    "showResults": true,
+    "frameSkip": 5,
+    "saveImagesWithResults": false,
+    "confidenceSource": 0.4,
+    "enableCLAHE": false,
+    "enablePreprocessing": false,
+    "ppeDetectionClasses": ["Hardhat", "NO-Hardhat", "Saftety Vest", "NO-Safety Vest"]
+
+}
