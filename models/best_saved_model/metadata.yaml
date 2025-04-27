@@ -1,7 +1,7 @@
 description: Ultralytics best model trained on /kaggle/working/ppe_data.yaml
 author: Ultralytics
-date: '2025-04-23T00:19:10.532506'
-version: 8.3.113
+date: '2025-04-24T13:16:59.012396'
+version: 8.3.114
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
 stride: 32
@@ -26,5 +26,5 @@ args:
   fraction: 1.0
   half: false
   int8: false
-  nms: false
+  nms: true
 channels: 3

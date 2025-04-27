@@ -10,7 +10,7 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-### 2. Convert to TensorFlow Lite
+### 2. Convert to TensorFlow Lite (Optional)
 Have a custom PyTorch model? Simply add it to the `models/` directory and run the following command to convert it to ONNX and TensorFlow Lite formats for lightweight deployment.
 
 ```bash
