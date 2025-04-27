@@ -1,13 +1,35 @@
 {
-    "modelPath": "./models/best.pt",
-    "resultsPath": "./runs",
-    "inputSource": 0,
-    "showResults": true,
-    "frameSkip": 5,
-    "saveImagesWithResults": false,
-    "confidenceSource": 0.4,
-    "enableCLAHE": false,
-    "enablePreprocessing": false,
-    "ppeDetectionClasses": ["Hardhat", "NO-Hardhat", "Saftety Vest", "NO-Safety Vest"]
-
+    "paths": {
+        "model": "./models/best.pt",
+        "results": "./runs",
+        "input": "./assets/ppe-3.mp4"
+    },
+    "settings": {
+        "lightVariationChance": 0.1,
+        "blurChance": 0.1,
+        "inputSize": 640,
+        "frameSkip": 5,
+        "resolution": [
+            640,
+            480
+        ],
+        "frameDelayMilliseconds": 100,
+        "confidenceThreshold": 0.5
+    },
+    "options": {
+        "showResults": true,
+        "applyBlur": true,
+        "applyLightVariation": true,
+        "saveImagesWithResults": false,
+        "enableCLAHE": false,
+        "enablePreprocessing": true
+    },
+    "ppeDetectionClasses": [
+        "Hardhat",
+        "NO-Hardhat",
+        "Mask",
+        "NO-Mask",
+        "Safety Vest",
+        "NO-Safety Vest"
+    ]
 }
