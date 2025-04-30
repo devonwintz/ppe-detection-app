@@ -13,15 +13,19 @@ error_logger = make_logger("app_error", "error")
 class PPEApp:
     def __init__(self, config_path):
         self.config = load_file(config_path)
-        self.input_size = self.config.get("settings", {}).get("inputSize", 640)
-        self.conf = self.config.get("settings", {}).get("confidenceThreshold", 0.4)
-        self.target_classes = self.config["ppeDetectionClasses"]
-        self.frame_skip = self.config.get("settings", {}).get("frameSkip", 2)
+        self.paths = self.config.get("paths", {})
+        self.settings = self.config.get("settings", {})
+        self.options = self.config.get("options", {})
+
+        self.input_size = self.settings.get("inputSize", 640)
+        self.conf = self.settings.get("confidenceThreshold", 0.4)
+        self.target_classes = self.config.get("ppeDetectionClasses", [])
+        self.frame_skip = self.settings.get("frameSkip", 2)
         self.is_android = is_android()
 
         self.model, self.input_index, self.output_index, self.input_shape = get_platform_model(self.config, self.is_android)
 
-        self.input_source = self.config.get("paths", {}).get("input", 0)
+        self.input_source = self.paths.get("input", 0)
         self.webcam = cv2.VideoCapture(self.input_source)
 
         if not self.webcam.isOpened():
@@ -43,8 +47,8 @@ class PPEApp:
         else:
             logger.info(f"Video/IP stream input '{self.input_source}' initialized successfully.")
 
-        self.light_chance = self.config.get("settings", {}).get("lightVariationChance", 0.1)
-        self.blur_chance = self.config.get("settings", {}).get("blurChance", 0.1)
+        self.light_chance = self.settings.get("lightVariationChance", 0.1)
+        self.blur_chance = self.settings.get("blurChance", 0.1)
 
 
     def _is_webcam_source(self):
@@ -88,9 +92,9 @@ class PPEApp:
 
         try:
             resized = cv2.resize(frame, (self.input_size, self.input_size))
-            if self.config.get("options", {}).get("applyLightVariation", False):
+            if self.options.get("applyLightVariation", False):
                 resized = self.apply_random_light_variation(resized)
-            if self.config.get("options", {}).get("applyBlur", False):
+            if self.options.get("applyBlur", False):
                 resized = self.apply_random_blur(resized)
             is_preprocessed  = True
         except cv2.error as e:
@@ -98,7 +102,7 @@ class PPEApp:
             return None, is_preprocessed
 
         # Optional: Apply CLAHE if enabled
-        if self.config.get("options", {}).get("enableCLAHE", False):
+        if self.options.get("enableCLAHE", False):
             try:
                 gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
                 clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
@@ -121,10 +125,11 @@ class PPEApp:
 
         return preprocessed_frame, is_preprocessed
 
+
     def process_frame(self, frame):
         is_preprocessed = False
 
-        if self.config.get("options", {}).get("enablePreprocessing", False):
+        if self.options.get("enablePreprocessing", False):
             preprocessed_frame, is_preprocessed = self.preprocess_image(frame)
             if preprocessed_frame is None:
                 error_logger.warning("Preprocessing failed; skipping frame.")
@@ -244,15 +249,15 @@ class PPEApp:
                 logger.error("Image is not a valid image")
                 break
 
-            if self.config.get("options", {}).get("showResults", True):
+            if self.options.get("showResults", True):
                 cv2.imshow("PPE Detection", result_img)
 
-            if self.config.get("options", {}).get("saveImagesWithResults", False):
+            if self.options.get("saveImagesWithResults", False):
                 os.makedirs(self.config["paths"]["results"], exist_ok=True)
                 cv2.imwrite(f"{self.config['paths']['results']}/result_{i}.jpg", result_img)
                 i += 1
 
-            if cv2.waitKey(self.config.get("settings", {}).get("frameDelayMilliseconds", 100)) & 0xFF == ord('q'):
+            if cv2.waitKey(self.settings.get("frameDelayMilliseconds", 100)) & 0xFF == ord('q'):
                 break
 
         self.webcam.release()
