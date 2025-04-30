@@ -18,6 +18,9 @@ class PPEApp:
         self.options = self.config.get("options", {})
 
         self.input_size = self.settings.get("inputSize", 640)
+        self.image_inference_mode = self.options.get("imageInferenceMode", False)
+        self.images_path = self.paths.get("inputImagesPath", "./data/images/")
+        self.output_label_path = self.paths.get("outputLabelsPath", "./data/test/")
         self.conf = self.settings.get("confidenceThreshold", 0.4)
         self.target_classes = self.config.get("ppeDetectionClasses", [])
         self.frame_skip = self.settings.get("frameSkip", 2)
@@ -142,7 +145,7 @@ class PPEApp:
             return self.process_with_yolo(preprocessed_frame, is_preprocessed)
 
 
-    def process_with_yolo(self, frame, is_preprocessed=False):
+    def process_with_yolo(self, frame, image_name, is_preprocessed=False):
         if is_preprocessed:
             img = frame
             if img.shape[0] == 1:
@@ -159,28 +162,47 @@ class PPEApp:
 
         results = self.model(source=img, conf=self.conf, show=False, save=False)
 
-        for result in results:
-            img = result.orig_img.copy()
-            names = result.names
+        image_width, image_height = img.shape[1], img.shape[0]
 
-            for box in result.boxes:
-                cls_id = int(box.cls[0])
-                cls_name = names[cls_id]
-                conf = float(box.conf[0]) * 100
+        if self.image_inference_mode:
+            with open(f"{self.output_label_path}/{image_name}.txt", "w") as f:
+                for result in results:
+                    names = result.names
 
-                if cls_name not in self.target_classes:
-                    continue
+                    for box in result.boxes:
+                        cls_id = int(box.cls[0])
+                        cls_name = names[cls_id]
+                        conf = float(box.conf[0])
 
-                xyxy = box.xyxy[0].cpu().numpy().astype(int)
-                label = f"{cls_name} {conf:.2f}%"
+                        # Normalize the bounding box coordinates to be relative to the image size
+                        xyxy = box.xyxy[0].cpu().numpy().astype(int)
+                        x_center = (xyxy[0] + xyxy[2]) / 2 / image_width
+                        y_center = (xyxy[1] + xyxy[3]) / 2 / image_height
+                        width = (xyxy[2] - xyxy[0]) / image_width
+                        height = (xyxy[3] - xyxy[1]) / image_height
 
-                color = (0, 255, 0) if "NO-" not in cls_name else (0, 0, 255)
-                cv2.rectangle(img, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), color, 2)
-                cv2.putText(img, label, (xyxy[0], xyxy[1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                        f.write(f"{cls_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f} {conf:.6f}\n")
+        else:
+            for result in results:
+                img = result.orig_img.copy()
+                names = result.names
 
+                for box in result.boxes:
+                    cls_id = int(box.cls[0])
+                    cls_name = names[cls_id]
+                    conf = float(box.conf[0]) * 100
+
+                    if cls_name not in self.target_classes:
+                        continue
+
+                    xyxy = box.xyxy[0].cpu().numpy().astype(int)
+                    label = f"{cls_name} {conf:.2f}%"
+
+                    color = (0, 255, 0) if "NO-" not in cls_name else (0, 0, 255)
+                    cv2.rectangle(img, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), color, 2)
+                    cv2.putText(img, label, (xyxy[0], xyxy[1] - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         return img
-
 
 
     def process_with_tflite(self, frame, is_preprocessed):
@@ -223,7 +245,34 @@ class PPEApp:
 
         return frame
 
+
+    def run_inference_on_images(self):
+        counter = 0
+        images = os.listdir(self.images_path)
+        os.makedirs(self.output_label_path, exist_ok=True)
+
+        for image in images:
+            counter += 1
+            image_path = os.path.join(self.images_path, image)
+            img = cv2.imread(image_path)
+            if img is None:
+                error_logger.warning(f"Unable to read image: {image_path}")
+                continue
+
+            image_name = os.path.splitext(os.path.basename(image))[0]
+            if self.is_android:
+                pass
+            else:
+                self.process_with_yolo(img, os.path.basename(image_name))
+
+        logger.info(f"Inference completed on {counter} images. Results stored at '{self.output_label_path}'")
+
     def run(self):
+        if self.image_inference_mode:
+            logger.info("Running inference on images...")
+            self.run_inference_on_images()
+            return
+
         i = 0
         frame_count = 0
 

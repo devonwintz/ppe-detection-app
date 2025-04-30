@@ -2,7 +2,9 @@
     "paths": {
         "model": "./models/best.pt",
         "results": "./runs",
-        "input": "./assets/ppe-3.mp4"
+        "input": "./assets/ppe-3.mp4",
+        "inputImagesPath": "./data/images/",
+        "outputLabelsPath": "./data/labels/predictions"
     },
     "settings": {
         "lightVariationChance": 0.1,
@@ -14,21 +16,20 @@
             480
         ],
         "frameDelayMilliseconds": 100,
-        "confidenceThreshold": 0.5
+        "confidenceThreshold": 0.25
     },
     "options": {
         "showResults": true,
         "applyBlur": true,
-        "applyLightVariation": true,
+        "applyLightVariation": false,
         "saveImagesWithResults": false,
         "enableCLAHE": false,
-        "enablePreprocessing": true
+        "enablePreprocessing": false,
+        "imageInferenceMode": true
     },
     "ppeDetectionClasses": [
         "Hardhat",
         "NO-Hardhat",
-        "Mask",
-        "NO-Mask",
         "Safety Vest",
         "NO-Safety Vest"
     ]
