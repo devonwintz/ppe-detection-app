@@ -3,8 +3,9 @@
         "model": "./models/best.pt",
         "results": "./runs",
         "input": "./assets/ppe-3.mp4",
-        "inputImagesPath": "./data/images/",
-        "outputLabelsPath": "./data/labels/predictions"
+        "groundTruthLabels": "./data/labels/ground_truth",
+        "inputImages": "./data/images/",
+        "outputLabels": "./data/labels/predictions"
     },
     "settings": {
         "lightVariationChance": 0.1,
@@ -16,7 +17,7 @@
             480
         ],
         "frameDelayMilliseconds": 100,
-        "confidenceThreshold": 0.25
+        "confidenceThreshold": 0.4
     },
     "options": {
         "showResults": true,
