@@ -6,6 +6,7 @@ import random
 import numpy as np
 from utils.logger import make_logger
 from utils.file_loader import load_file
+from utils.boxes_overlap import boxes_overlap
 from utils.evaluate_predictions import evaluate_all_frames
 from utils.platform_selector import is_android, get_platform_model
 
@@ -194,25 +195,46 @@ class PPEApp:
 
                         f.write(f"{cls_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f} {conf:.6f}\n")
         else:
+            names = self.model.names
+            person_boxes = []
+            violation_boxes = []
+
             for result in results:
-                img = result.orig_img.copy()
-                names = result.names
+                boxes = result.boxes.xyxy.cpu().numpy()  # Get bounding boxes
+                confidences = result.boxes.conf.cpu().numpy()  # Get confidence scores
+                class_ids = result.boxes.cls.cpu().numpy()  # Get class IDs
 
-                for box in result.boxes:
-                    cls_id = int(box.cls[0])
+                for i in range(len(boxes)):
+                    cls_id = int(class_ids[i])
                     cls_name = names[cls_id]
-                    conf = float(box.conf[0]) * 100
+                    conf = confidences[i]
+                    xyxy = boxes[i].astype(int)
 
-                    if cls_name not in self.target_classes:
-                        continue
+                    if cls_name == "Person":
+                        person_boxes.append((xyxy, conf))
+                    elif cls_name in ["NO-Hardhat", "NO-Safety Vest"]:
+                        violation_boxes.append((xyxy, cls_name, conf))
 
-                    xyxy = box.xyxy[0].cpu().numpy().astype(int)
-                    label = f"{cls_name} {conf:.2f}%"
+            # Now assign compliance status
+            for p_box, p_conf in person_boxes:
+                status = "Compliant"
+                for v_box, v_name, v_conf in violation_boxes:
+                    if boxes_overlap(p_box, v_box, threshold=0.3):
+                        status = "Non-Compliant"
+                        break
 
-                    color = (0, 255, 0) if "NO-" not in cls_name else (0, 0, 255)
-                    cv2.rectangle(img, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), color, 2)
-                    cv2.putText(img, label, (xyxy[0], xyxy[1] - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                label = f"{status}"
+                color = (0, 0, 255) if status == "Non-Compliant" else (0, 255, 0)
+                cv2.rectangle(img, (p_box[0], p_box[1]), (p_box[2], p_box[3]), color, 2)
+                cv2.putText(img, label, (p_box[0], p_box[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            # Optionally display violations too
+            for v_box, v_name, v_conf in violation_boxes:
+                cv2.rectangle(img, (v_box[0], v_box[1]), (v_box[2], v_box[3]), (0, 255, 255), 2)
+                cv2.putText(img, f"{v_name} {v_conf:.2f}%", (v_box[0], v_box[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+
         return img
 
 
