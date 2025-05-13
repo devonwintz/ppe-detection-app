@@ -4,9 +4,11 @@ import cv2
 import psutil
 import random
 import numpy as np
+from collections import deque
 from utils.logger import make_logger
 from utils.file_loader import load_file
 from utils.boxes_overlap import boxes_overlap
+from utils.calculate_iou import calculate_iou
 from utils.evaluate_predictions import evaluate_all_frames
 from utils.platform_selector import is_android, get_platform_model
 
@@ -61,6 +63,10 @@ class PPEApp:
         self.light_chance = self.settings.get("lightVariationChance", 0.1)
         self.blur_chance = self.settings.get("blurChance", 0.1)
 
+        # Temporal smoothing setup
+        self.enable_temporal_smoothing = self.options.get("enableTemporalSmoothing", False)
+        self.temporal_window_size = self.settings.get("temporalWindowSize", 5)
+        self.frame_history = deque(maxlen=self.temporal_window_size)
 
     def _is_webcam_source(self):
         if isinstance(self.input_source, int):
@@ -69,6 +75,26 @@ class PPEApp:
             self.input_source = int(self.input_source)
             return True
         return False
+
+    def temporal_smooth_boxes(self, new_detections, iou_thresh=0.5):
+        if not self.enable_temporal_smoothing:
+            return new_detections
+
+        self.frame_history.append(new_detections)
+        smoothed = []
+
+        for label, box in new_detections:
+            match_count = 0
+            for frame in self.frame_history:
+                for old_label, old_box in frame:
+                    if old_label == label and calculate_iou(box, old_box) > iou_thresh:
+                        match_count += 1
+                        break
+
+            if match_count >= (len(self.frame_history) // 2):
+                smoothed.append((label, box))
+
+        return smoothed
 
 
     def apply_random_light_variation(self, frame):
@@ -196,13 +222,14 @@ class PPEApp:
                         f.write(f"{cls_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f} {conf:.6f}\n")
         else:
             names = self.model.names
-            person_boxes = []
-            violation_boxes = []
+            current_person_detections = []
+            current_violation_detections = []
 
+            # Step 1: Collect detections
             for result in results:
-                boxes = result.boxes.xyxy.cpu().numpy()  # Get bounding boxes
-                confidences = result.boxes.conf.cpu().numpy()  # Get confidence scores
-                class_ids = result.boxes.cls.cpu().numpy()  # Get class IDs
+                boxes = result.boxes.xyxy.cpu().numpy()
+                confidences = result.boxes.conf.cpu().numpy()
+                class_ids = result.boxes.cls.cpu().numpy()
 
                 for i in range(len(boxes)):
                     cls_id = int(class_ids[i])
@@ -211,28 +238,31 @@ class PPEApp:
                     xyxy = boxes[i].astype(int)
 
                     if cls_name == "Person":
-                        person_boxes.append((xyxy, conf))
+                        current_person_detections.append(("Person", list(xyxy)))
                     elif cls_name in ["NO-Hardhat", "NO-Safety Vest"]:
-                        violation_boxes.append((xyxy, cls_name, conf))
+                        current_violation_detections.append((cls_name, list(xyxy)))
 
-            # Now assign compliance status
-            for p_box, p_conf in person_boxes:
+            # Step 2: Apply temporal smoothing
+            smoothed_persons = self.temporal_smooth_boxes(current_person_detections)
+            smoothed_violations = self.temporal_smooth_boxes(current_violation_detections)
+
+            # Step 3: Draw and check compliance using smoothed data
+            for label, p_box in smoothed_persons:
                 status = "Compliant"
-                for v_box, v_name, v_conf in violation_boxes:
+                for v_label, v_box in smoothed_violations:
                     if boxes_overlap(p_box, v_box, threshold=0.3):
                         status = "Non-Compliant"
                         break
 
-                label = f"{status}"
                 color = (0, 0, 255) if status == "Non-Compliant" else (0, 255, 0)
                 cv2.rectangle(img, (p_box[0], p_box[1]), (p_box[2], p_box[3]), color, 2)
-                cv2.putText(img, label, (p_box[0], p_box[1] - 10),
+                cv2.putText(img, status, (p_box[0], p_box[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-            # Optionally display violations too
-            for v_box, v_name, v_conf in violation_boxes:
+            for label, v_box in smoothed_violations:
                 cv2.rectangle(img, (v_box[0], v_box[1]), (v_box[2], v_box[3]), (0, 255, 255), 2)
-                cv2.putText(img, f"{v_name} {v_conf:.2f}%", (v_box[0], v_box[1] - 10),
+                label_with_conf = f"{label} {conf:.2f}"
+                cv2.putText(img, label_with_conf, (v_box[0], v_box[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
         return img
