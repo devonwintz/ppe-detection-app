@@ -8,10 +8,11 @@
         "outputLabels": "./data/labels/predictions"
     },
     "settings": {
+        "temporalWindowSize": 10,
         "lightVariationChance": 0.1,
         "blurChance": 0.1,
         "inputSize": 640,
-        "frameSkip": 5,
+        "frameSkip": 0,
         "resolution": [
             640,
             480
@@ -26,9 +27,11 @@
         "saveImagesWithResults": false,
         "enableCLAHE": false,
         "enablePreprocessing": false,
-        "imageInferenceMode": true
+        "imageInferenceMode": true,
+        "enableTemporalSmoothing": false
     },
     "ppeDetectionClasses": [
+        "Person",
         "Hardhat",
         "NO-Hardhat",
         "Safety Vest",
